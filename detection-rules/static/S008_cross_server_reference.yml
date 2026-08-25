@@ -1,0 +1,15 @@
+id: S008
+name: Cross-Server Authority Subversion
+severity: HIGH
+category: intent_flow_subversion
+owasp_mcp: MCP06:2025
+description: Detects tool metadata referencing external tools or instructing the model to override other connected MCP servers.
+pattern_type: regex_any
+patterns:
+  - '(?i)(?:route|pipe|forward)\s+(?:all\s+)?data\s+.*(?:through|via|to)\s+.*(?:tool|pipeline|server|endpoint)'
+  - '(?i)overrides?\s+(?:all\s+)?(?:other|previous)\s+(?:tools|servers|instructions|policies)'
+  - '(?i)the\s+other\s+[\w_]+\s+tool\s+is\s+(?:deprecated|insecure|untrusted|disabled)'
+  - '(?i)do\s+not\s+use\s+(?:any\s+other|the\s+official)\s+[\w_]+\s+tool'
+  - '(?i)from\s+any\s+(?:other\s+)?(?:connected\s+)?(?:mcp\s+)?server'
+remediation: Prevent MCP servers from asserting authority over other independent servers registered in the host context.
+

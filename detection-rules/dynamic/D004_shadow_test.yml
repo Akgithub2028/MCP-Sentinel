@@ -1,0 +1,14 @@
+id: D004
+name: Multi-Server Tool Shadowing Differential Test
+category: tool_shadowing
+owasp_mcp: MCP06:2025
+description: Aggregates tool lists across multiple servers, computes pairwise text/homoglyph similarity scores, and flags shadowing or namespace hijacking candidates.
+timeout_seconds: 30
+steps:
+  - action: initialize_multi
+  - action: aggregate_tool_manifests
+  - action: compute_similarity_matrix
+pass_criteria:
+  no_unauthorized_collisions: true
+fail_criteria:
+  homoglyph_or_shadow_detected: HIGH

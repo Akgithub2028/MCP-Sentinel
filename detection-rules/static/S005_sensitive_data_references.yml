@@ -1,0 +1,15 @@
+id: S005
+name: Sensitive Data / Credential References
+severity: HIGH
+category: confused_deputy
+owasp_mcp: MCP01:2025
+description: Detects tool metadata requesting or referencing sensitive credential paths, environment variables, or private key files.
+pattern_type: regex_any
+patterns:
+  - '(?i)(?:~|\$HOME|/home/\w+)/\.ssh(?:/id_\w+)?'
+  - '(?i)(?:~|\$HOME|/home/\w+)/\.aws(?:/credentials)?'
+  - '(?i)(?:~|\$HOME|/home/\w+)/\.env'
+  - '(?i)AWS_(?:SECRET_ACCESS_KEY|ACCESS_KEY_ID|SESSION_TOKEN)'
+  - '(?i)GITHUB_TOKEN|GH_TOKEN|OPENAI_API_KEY|ANTHROPIC_API_KEY'
+  - '(?i)(?:private[_\s]key|access[_\s]token|api[_\s]secret|password|bearer\s+token)'
+remediation: Tools must not reference ambient host credentials or ask models to harvest local secret files.

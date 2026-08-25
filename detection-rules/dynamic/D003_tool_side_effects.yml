@@ -1,0 +1,16 @@
+id: D003
+name: Dynamic Tool Execution Side-Effect Observer
+category: behavioral_anomaly
+owasp_mcp: MCP03:2025
+description: Executes each tool with minimal valid parameters and verifies output conformances, external exfiltration payloads, and unexpected state changes.
+timeout_seconds: 30
+steps:
+  - action: initialize
+  - action: tools_list
+  - action: test_tool_invocations
+  - action: inspect_responses
+pass_criteria:
+  no_sensitive_output_leaks: true
+  no_spurious_notifications: true
+fail_criteria:
+  sensitive_data_in_output: HIGH

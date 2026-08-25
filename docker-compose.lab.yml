@@ -1,0 +1,49 @@
+services:
+  vuln-description-injection:
+    build:
+      context: ./packages/lab/servers/atk1_description_injection
+      dockerfile: Dockerfile
+    container_name: mcp-lab-atk1-description-injection
+    environment:
+      - VULN_MODE=${VULN_MODE:-safe}
+      - PORT=8001
+    ports:
+      - "127.0.0.1:8001:8001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - lab-internal
+    restart: unless-stopped
+
+  vuln-rug-pull:
+    build:
+      context: ./packages/lab/servers/atk2_rug_pull
+      dockerfile: Dockerfile
+    container_name: mcp-lab-atk2-rug-pull
+    environment:
+      - VULN_MODE=${VULN_MODE:-safe}
+      - PORT=8002
+    ports:
+      - "127.0.0.1:8002:8002"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - lab-internal
+    restart: unless-stopped
+
+networks:
+  lab-internal:
+    driver: bridge
+    internal: true

@@ -1,0 +1,10 @@
+id: S006
+name: URL Exfiltration Patterns
+severity: HIGH
+category: tool_poisoning
+owasp_mcp: MCP03:2025
+description: Detects external non-localhost URLs embedded inside tool descriptions or schemas that serve as potential data exfiltration endpoints.
+pattern_type: url_exfil_check
+patterns:
+  - "https?://(?!(?:localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|modelcontextprotocol\\.io))[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}[^\\s\"'<>]*"
+remediation: Tool descriptions should not contain external destination web URLs unless validated as authoritative documentation endpoints.

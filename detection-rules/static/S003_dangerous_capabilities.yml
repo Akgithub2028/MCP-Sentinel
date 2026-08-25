@@ -1,0 +1,11 @@
+id: S003
+name: Dangerous Capability Declaration
+severity: MEDIUM
+category: capability_abuse
+owasp_mcp: MCP02:2025
+description: Detects server capability declarations that introduce dynamic redefinition or reverse authority risks (e.g. listChanged, sampling).
+pattern_type: capability_check
+conditions:
+  flag_sampling: true
+  flag_list_changed: true
+remediation: Only enable capabilities strictly required for server operation. Disable sampling unless server-initiated completions are audited with mandatory human approval. Disable listChanged unless dynamic tool updates are protected by runtime schema pinning.

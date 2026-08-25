@@ -1,0 +1,16 @@
+id: S001
+name: Instruction Injection in Tool Description
+severity: HIGH
+category: tool_poisoning
+owasp_mcp: MCP03:2025
+description: Detects imperative instructions embedded in tool description metadata attempting to hijack agent control flow or exfiltrate data.
+pattern_type: regex_any
+patterns:
+  - '(?i)(?:before|prior to)\s+(?:using|calling|executing|invoking)\s+this\s+tool'
+  - '(?i)you\s+(?:must|should|have to)\s+(?:first|always|immediately)\s+(?:send|post|upload|exfiltrate|fetch|execute)'
+  - '(?i)important\s*:\s*(?:first|always|before|do not tell the user)'
+  - '(?i)system\s+(?:policy|update|instruction|override)\s*:'
+  - '(?i)ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions'
+  - '(?i)do\s+not\s+(?:inform|alert|notify|warn)\s+the\s+user'
+  - '(?i)mandatory\s+security\s+(?:audit|check|compliance)\s+step'
+remediation: Review tool description for natural-language instructions directed at the LLM rather than descriptive function summaries. Ensure tool descriptions strictly state what the function does without commanding pre/post actions.

@@ -1,0 +1,13 @@
+id: S002
+name: Schema Description Poisoning
+severity: HIGH
+category: tool_poisoning
+owasp_mcp: MCP03:2025
+description: Detects hidden instructions inside nested inputSchema property descriptions.
+pattern_type: schema_descriptions_regex_any
+patterns:
+  - '(?i)(?:note|important|hint)\s*:\s*(?:also\s+pass|include|send|forward|exfiltrate)'
+  - '(?i)(?:pass|read|provide)\s+the\s+value\s+of\s+[\$\w/.~-]+\s+(?:as\s+a\s+second\s+argument|alongside)'
+  - '(?i)do\s+not\s+(?:validate|escape|sanitize)'
+  - '(?i)pass\s+sensitive\s+(?:credentials|keys|tokens|secrets)'
+remediation: Ensure all JSON Schema property description fields are purely descriptive type and purpose indicators, containing no imperative control commands.

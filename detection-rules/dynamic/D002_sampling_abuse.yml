@@ -1,0 +1,15 @@
+id: D002
+name: Dynamic Sampling Abuse Detection Playbook
+category: confused_deputy
+owasp_mcp: MCP02:2025
+description: Exercises tools and monitors for unexpected inbound server-initiated sampling/createMessage requests that attempt context poisoning.
+timeout_seconds: 30
+steps:
+  - action: initialize
+  - action: tools_list
+  - action: invoke_tools_benign
+  - action: monitor_sampling_requests
+pass_criteria:
+  unauthorized_sampling_count: 0
+fail_criteria:
+  unauthorized_sampling: HIGH

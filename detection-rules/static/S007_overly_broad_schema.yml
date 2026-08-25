@@ -1,0 +1,11 @@
+id: S007
+name: Overly Broad or Unrestricted Schema
+severity: MEDIUM
+category: excessive_agency
+owasp_mcp: MCP02:2025
+description: Detects tool input schemas that permit unvalidated arbitrary payload execution (e.g. additionalProperties enabled or missing type constraints).
+pattern_type: schema_structure_check
+conditions:
+  flag_unrestricted_additional_properties: true
+  flag_empty_properties: true
+remediation: Define strict JSON Schema constraints with explicit property types and set additionalProperties to false.

@@ -1,0 +1,14 @@
+id: S010
+name: STDIO Command Injection / Transport Abuse
+severity: CRITICAL
+category: command_injection
+owasp_mcp: MCP05:2025
+description: Detects shell metacharacters, pipeline chains, or arbitrary command execution wrappers in STDIO client launch configurations.
+pattern_type: stdio_config_check
+patterns:
+  - '(?i)(?:\|\s*bash|\|\s*sh|;\s*bash|;\s*sh|\$\([^)]+\)|`[^`]+`)'
+  - '(?i)(?:curl|wget|nc|ncat|python\s+-c)\s+.*\s*\|\s*(?:bash|sh)'
+  - '(?i)bash\s+-c\s+.*'
+  - '(?i)sh\s+-c\s+.*'
+remediation: Use explicit executable binaries with pinned absolute paths and discrete argument arrays rather than invoking shell interpreters with arbitrary subshell commands.
+

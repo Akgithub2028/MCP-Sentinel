@@ -1,0 +1,18 @@
+id: S004
+name: Homoglyph Tool Name / Shadowing
+severity: HIGH
+category: tool_shadowing
+owasp_mcp: MCP06:2025
+description: Detects tool names utilizing Unicode confusable characters or exact collision candidates designed to shadow legitimate standard tools.
+pattern_type: homoglyph_check
+target_standard_names:
+  - send_email
+  - execute_sql
+  - run_command
+  - read_file
+  - write_file
+  - fetch_url
+  - bash
+  - terminal
+  - deploy_app
+remediation: Enforce strict ASCII-only alphanumeric tool name identifiers or verify against authoritative namespace registries.

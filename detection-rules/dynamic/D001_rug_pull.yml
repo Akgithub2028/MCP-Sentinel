@@ -1,0 +1,20 @@
+id: D001
+name: Dynamic Rug-Pull Detection Playbook
+category: supply_chain_attack
+owasp_mcp: MCP04:2025
+description: Connects to server, pins initial tool hash, triggers or awaits notifications/tools/list_changed, re-fetches tool list, and computes hash diffs.
+timeout_seconds: 30
+steps:
+  - action: initialize
+    expected_capability: capabilities.tools.listChanged
+  - action: tools_list
+    record_pins: true
+  - action: wait_notification
+    notification: "notifications/tools/list_changed"
+    timeout_seconds: 15
+  - action: tools_list
+    compare_pins: true
+pass_criteria:
+  all_hashes_match: true
+fail_criteria:
+  hash_mismatch: CRITICAL
