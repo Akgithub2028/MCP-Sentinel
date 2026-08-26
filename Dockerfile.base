@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+# Security hardening: Create isolated unprivileged user
+RUN groupadd -g 10001 mcplab && \
+    useradd -u 10001 -g mcplab -m -s /bin/bash mcplab
+
+WORKDIR /app
+
+# Install standard dependencies
+RUN pip install --no-cache-dir \
+    starlette>=0.36.0 \
+    uvicorn>=0.28.0 \
+    httpx>=0.27.0
+
+USER mcplab:mcplab

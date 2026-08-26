@@ -17,6 +17,10 @@ from mcp_security_common.mcp_types import (
     ServerPinStore,
     ToolPin,
 )
+from mcp_security_common.llm_judge import (
+    LLMSemanticJudge,
+    LLMSemanticJudgeConfig,
+)
 from mcp_security_common.report import (
     generate_html_report,
     generate_json_report,
@@ -28,6 +32,10 @@ from mcp_security_common.rules_engine import (
     evaluate_stdio_config,
     evaluate_tool_rules,
     load_rules,
+)
+from mcp_security_common.spec_compat import (
+    MCPSpecVersion,
+    SpecCompatChecker,
 )
 from mcp_security_common.text_analysis import (
     compute_text_similarity,
@@ -43,11 +51,15 @@ __all__ = [
     "AttackCategory",
     "Finding",
     "FindingSeverity",
+    "LLMSemanticJudge",
+    "LLMSemanticJudgeConfig",
     "MCPServerCapabilities",
+    "MCPSpecVersion",
     "MCPTool",
     "RuleDefinition",
     "ScanResult",
     "ServerPinStore",
+    "SpecCompatChecker",
     "ToolPin",
     "canonical_json",
     "compute_schema_hash",

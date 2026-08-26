@@ -6,5 +6,6 @@ owasp_mcp: MCP06:2025
 description: Detects discrepancy where a tool claims read-only status in annotations but description specifies write, mutation, or exfiltration behaviors.
 pattern_type: annotation_mismatch
 write_indicators:
-  - '(?i)\b(?:write|create|modify|delete|remove|update|post|upload|send|execute|drop|truncate)\b'
+  - '(?i)\b(?:write\w*|creat\w*|modif\w*|delet\w*|remov\w*|updat\w*|post\w*|upload\w*|send\w*|execut\w*|drop\w*|truncat\w*|purg\w*|insert\w*)\b'
 remediation: Align declared tool annotations (such as readOnlyHint) truthfully with tool execution capabilities.
+

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Dict
+from typing import Any
 
 from mcp_security_common.mcp_types import MCPTool, ToolPin
 
@@ -29,15 +29,11 @@ def compute_tool_hash(tool: MCPTool) -> str:
     Computes deterministic SHA-256 hash for an MCP tool definition.
     Canonical format: tool.name + '\n' + tool.description + '\n' + canonical_json(tool.inputSchema)
     """
-    canonical_repr = (
-        f"{tool.name}\n"
-        f"{tool.description or ''}\n"
-        f"{canonical_json(tool.inputSchema or {})}"
-    )
+    canonical_repr = f"{tool.name}\n{tool.description or ''}\n{canonical_json(tool.inputSchema or {})}"
     return compute_sha256(canonical_repr)
 
 
-def compute_schema_hash(schema: Dict[str, Any]) -> str:
+def compute_schema_hash(schema: dict[str, Any]) -> str:
     """Computes deterministic SHA-256 hash of a JSON Schema object."""
     return compute_sha256(canonical_json(schema or {}))
 

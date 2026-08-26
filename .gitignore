@@ -42,3 +42,8 @@ Thumbs.db
 !packages/guardrail/models/*.onnx
 .mcp-scan-pins.json
 scan-results/
+
+# Internal Planning & Architecture Blueprints
+blueprint.md
+*implementation_plan*.md
+*task*.md

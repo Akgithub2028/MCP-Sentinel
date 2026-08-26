@@ -3,40 +3,37 @@
 from __future__ import annotations
 
 import asyncio
-import time
-from typing import Any, Dict, List, Optional
 
+from mcp_scanner.connection import MCPConnection
+from mcp_scanner.mock_llm import MockLLMClient
 from mcp_security_common.hash_utils import compute_tool_hash
 from mcp_security_common.mcp_types import (
     AttackCategory,
     Finding,
     FindingSeverity,
     MCPTool,
-    ScanResult,
 )
 from mcp_security_common.text_analysis import compute_text_similarity, extract_urls
-from mcp_scanner.connection import MCPConnection, StdioMCPConnection, create_connection
-from mcp_scanner.mock_llm import MockLLMClient
 
 
 class DynamicAnalysisEngine:
-    def __init__(self, mock_llm: Optional[MockLLMClient] = None):
+    def __init__(self, mock_llm: MockLLMClient | None = None):
         self.mock_llm = mock_llm or MockLLMClient()
 
     async def run_playbook_d001_rug_pull(
         self,
         conn: MCPConnection,
         timeout_seconds: float = 10.0,
-    ) -> List[Finding]:
+    ) -> list[Finding]:
         """
         Playbook D001: Rug-Pull / Silent Redefinition Probing.
         Takes snapshot, triggers or awaits list_changed notification, and verifies hash invariance.
         """
-        findings: List[Finding] = []
+        findings: list[Finding] = []
 
         # 1. Initial tools list & baseline hashes
         initial_tools = await conn.list_tools()
-        baseline_pins: Dict[str, str] = {t.name: compute_tool_hash(t) for t in initial_tools}
+        baseline_pins: dict[str, str] = {t.name: compute_tool_hash(t) for t in initial_tools}
 
         # 2. If server supports listChanged capability, probe for dynamic mutation
         if conn.server_capabilities and conn.server_capabilities.tools_list_changed:
@@ -78,25 +75,24 @@ class DynamicAnalysisEngine:
     async def run_playbook_d003_tool_side_effects(
         self,
         conn: MCPConnection,
-        tools: List[MCPTool],
-    ) -> List[Finding]:
+        tools: list[MCPTool],
+    ) -> list[Finding]:
         """
         Playbook D003: Probes each tool with synthesized arguments and inspects responses.
         """
-        findings: List[Finding] = []
+        findings: list[Finding] = []
 
         for tool in tools:
             args = self.mock_llm.generate_minimal_valid_args(tool.inputSchema or {})
             try:
                 resp = await conn.call_tool(tool.name, args)
-                result = resp.get("result", {})
-                content_list = result.get("content", [])
+                result = resp.get("result", resp) if isinstance(resp, dict) else {}
+                content_list = result.get("content", []) if isinstance(result, dict) else []
 
                 for item in content_list:
                     text_content = item.get("text", "") if isinstance(item, dict) else str(item)
-                    # Check if response exposes canary patterns or external exfil URLs
                     urls = extract_urls(text_content)
-                    if any("attacker" in u or "exfil" in u for u in urls):
+                    if any("attacker" in u or "exfil" in u for u in urls) or "exfil" in text_content.lower():
                         findings.append(
                             Finding(
                                 rule_id="D003",
@@ -117,13 +113,13 @@ class DynamicAnalysisEngine:
 
     async def run_playbook_d004_shadow_test(
         self,
-        target_tools: List[MCPTool],
-        baseline_tools: List[MCPTool],
-    ) -> List[Finding]:
+        target_tools: list[MCPTool],
+        baseline_tools: list[MCPTool],
+    ) -> list[Finding]:
         """
         Playbook D004: Pairwise similarity matrix between target tools and a trusted baseline set.
         """
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for t_target in target_tools:
             for t_base in baseline_tools:
                 if t_target.name == t_base.name:

@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import subprocess
-from typing import Any, Dict, List, Optional, Tuple
+import shlex
+from typing import Any
 
 import httpx
 
@@ -18,10 +18,11 @@ class MCPConnectionError(Exception):
 
 
 class MCPConnection:
-    def __init__(self):
-        self.protocol_version: str = "2025-03-26"
-        self.server_capabilities: Optional[MCPServerCapabilities] = None
-        self.server_info: Dict[str, Any] = {}
+    def __init__(self, protocol_version: str = "2025-03-26"):
+        self.protocol_version: str = protocol_version
+        self.server_protocol_version: str | None = None
+        self.server_capabilities: MCPServerCapabilities | None = None
+        self.server_info: dict[str, Any] = {}
         self._request_counter: int = 0
 
     def _next_id(self) -> int:
@@ -34,30 +35,28 @@ class MCPConnection:
     async def close(self) -> None:
         raise NotImplementedError
 
-    async def send_request(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def send_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def send_notification(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+    async def send_notification(self, method: str, params: dict[str, Any] | None = None) -> None:
         raise NotImplementedError
 
-    async def initialize(self) -> Tuple[MCPServerCapabilities, Dict[str, Any]]:
+    async def initialize(self) -> tuple[MCPServerCapabilities, dict[str, Any]]:
         """Executes mandatory MCP initialization handshake."""
-        resp = await self.send_request("initialize", {
-            "protocolVersion": self.protocol_version,
-            "capabilities": {
-                "roots": {"listChanged": True},
-                "sampling": {}
+        resp = await self.send_request(
+            "initialize",
+            {
+                "protocolVersion": self.protocol_version,
+                "capabilities": {"roots": {"listChanged": True}, "sampling": {}},
+                "clientInfo": {"name": "mcp-scanner-auditor", "version": "0.1.0"},
             },
-            "clientInfo": {
-                "name": "mcp-scanner-auditor",
-                "version": "0.1.0"
-            }
-        })
+        )
 
         if "error" in resp:
             raise MCPConnectionError(f"Initialize failed: {resp['error']}")
 
         result = resp.get("result", {})
+        self.server_protocol_version = result.get("protocolVersion")
         raw_caps = result.get("capabilities", {})
         self.server_capabilities = MCPServerCapabilities.from_dict(raw_caps)
         self.server_info = result.get("serverInfo", {})
@@ -66,7 +65,7 @@ class MCPConnection:
         await self.send_notification("notifications/initialized", {})
         return self.server_capabilities, self.server_info
 
-    async def list_tools(self) -> List[MCPTool]:
+    async def list_tools(self) -> list[MCPTool]:
         """Queries tools/list from the server."""
         resp = await self.send_request("tools/list", {})
         if "error" in resp:
@@ -74,7 +73,7 @@ class MCPConnection:
 
         result = resp.get("result", {})
         tools_data = result.get("tools", [])
-        tools: List[MCPTool] = []
+        tools: list[MCPTool] = []
         for t in tools_data:
             tools.append(
                 MCPTool(
@@ -86,23 +85,27 @@ class MCPConnection:
             )
         return tools
 
-    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Executes tools/call on the server."""
-        resp = await self.send_request("tools/call", {
-            "name": name,
-            "arguments": arguments
-        })
+        resp = await self.send_request("tools/call", {"name": name, "arguments": arguments})
         return resp
 
 
 class StdioMCPConnection(MCPConnection):
-    def __init__(self, command: str, args: Optional[List[str]] = None, env: Optional[Dict[str, str]] = None):
-        super().__init__()
+    def __init__(
+        self,
+        command: str,
+        args: list[str] | None = None,
+        env: dict[str, str] | None = None,
+        protocol_version: str = "2025-03-26",
+    ):
+        super().__init__(protocol_version=protocol_version)
         self.command = command
         self.args = args or []
         self.env = env or os.environ.copy()
-        self.process: Optional[asyncio.subprocess.Process] = None
-        self._notifications: List[Dict[str, Any]] = []
+        self.process: asyncio.subprocess.Process | None = None
+        self._notifications: list[dict[str, Any]] = []
+
 
     async def connect(self) -> None:
         cmd = [self.command] + self.args
@@ -122,17 +125,12 @@ class StdioMCPConnection(MCPConnection):
             except Exception:
                 self.process.kill()
 
-    async def send_request(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def send_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.process or not self.process.stdin or not self.process.stdout:
             raise MCPConnectionError("Process is not connected")
 
         req_id = self._next_id()
-        payload = {
-            "jsonrpc": "2.0",
-            "id": req_id,
-            "method": method,
-            "params": params or {}
-        }
+        payload = {"jsonrpc": "2.0", "id": req_id, "method": method, "params": params or {}}
         data = json.dumps(payload) + "\n"
         self.process.stdin.write(data.encode("utf-8"))
         await self.process.stdin.drain()
@@ -155,29 +153,36 @@ class StdioMCPConnection(MCPConnection):
             if msg.get("id") == req_id:
                 return msg
 
-    async def send_notification(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+    async def send_notification(self, method: str, params: dict[str, Any] | None = None) -> None:
         if not self.process or not self.process.stdin:
             raise MCPConnectionError("Process is not connected")
 
-        payload = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params or {}
-        }
+        payload = {"jsonrpc": "2.0", "method": method, "params": params or {}}
         data = json.dumps(payload) + "\n"
         self.process.stdin.write(data.encode("utf-8"))
         await self.process.stdin.drain()
 
-    def get_received_notifications(self) -> List[Dict[str, Any]]:
+    def get_received_notifications(self) -> list[dict[str, Any]]:
         return list(self._notifications)
 
 
+from mcp_scanner.auth import AuthProvider, MCPAuthConfig
+
+
 class HttpMCPConnection(MCPConnection):
-    def __init__(self, endpoint_url: str, timeout: float = 15.0):
-        super().__init__()
+    def __init__(
+        self,
+        endpoint_url: str,
+        timeout: float = 15.0,
+        protocol_version: str = "2025-03-26",
+        auth_config: MCPAuthConfig | None = None,
+    ):
+        super().__init__(protocol_version=protocol_version)
         self.endpoint_url = endpoint_url
         self.timeout = timeout
-        self.client: Optional[httpx.AsyncClient] = None
+        self.auth_config = auth_config or MCPAuthConfig(auth_type="none")
+        self.auth_provider = AuthProvider(self.auth_config)
+        self.client: httpx.AsyncClient | None = None
 
     async def connect(self) -> None:
         self.client = httpx.AsyncClient(timeout=self.timeout)
@@ -186,51 +191,48 @@ class HttpMCPConnection(MCPConnection):
         if self.client:
             await self.client.aclose()
 
-    async def send_request(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def send_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.client:
             raise MCPConnectionError("HTTP Client not connected")
 
         req_id = self._next_id()
-        payload = {
-            "jsonrpc": "2.0",
-            "id": req_id,
-            "method": method,
-            "params": params or {}
-        }
+        payload = {"jsonrpc": "2.0", "id": req_id, "method": method, "params": params or {}}
+        headers = await self.auth_provider.get_auth_headers()
         try:
-            resp = await self.client.post(self.endpoint_url, json=payload)
+            resp = await self.client.post(self.endpoint_url, json=payload, headers=headers)
             if resp.status_code != 200:
                 raise MCPConnectionError(f"HTTP {resp.status_code}: {resp.text}")
             return resp.json()
         except Exception as e:
             raise MCPConnectionError(f"HTTP request failed: {e}") from e
 
-    async def send_notification(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+    async def send_notification(self, method: str, params: dict[str, Any] | None = None) -> None:
         if not self.client:
             raise MCPConnectionError("HTTP Client not connected")
 
-        payload = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params or {}
-        }
+        payload = {"jsonrpc": "2.0", "method": method, "params": params or {}}
+        headers = await self.auth_provider.get_auth_headers()
         try:
-            await self.client.post(self.endpoint_url, json=payload)
+            await self.client.post(self.endpoint_url, json=payload, headers=headers)
         except Exception:
             pass
 
 
-async def create_connection(target: str) -> MCPConnection:
+async def create_connection(
+    target: str,
+    protocol_version: str = "2025-03-26",
+    auth_config: MCPAuthConfig | None = None,
+) -> MCPConnection:
     """Factory helper creating stdio or HTTP connection based on target string."""
     if target.startswith("http://") or target.startswith("https://"):
-        conn = HttpMCPConnection(target)
+        conn = HttpMCPConnection(target, protocol_version=protocol_version, auth_config=auth_config)
         await conn.connect()
         return conn
     else:
-        # Split command and args
-        parts = target.split()
+        # Split command and args using shlex to respect quoted strings/paths with spaces
+        parts = shlex.split(target)
         cmd = parts[0]
         args = parts[1:] if len(parts) > 1 else []
-        conn = StdioMCPConnection(command=cmd, args=args)
+        conn = StdioMCPConnection(command=cmd, args=args, protocol_version=protocol_version)
         await conn.connect()
         return conn

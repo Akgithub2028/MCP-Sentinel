@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 
-def detect_regex_patterns(text: str, patterns: List[str]) -> List[Tuple[str, str]]:
+def detect_regex_patterns(text: str, patterns: list[str]) -> list[tuple[str, str]]:
     """
     Evaluates a list of regex patterns against text.
     Returns list of tuples (matched_pattern, matched_text).
     """
     if not text:
         return []
-    matches: List[Tuple[str, str]] = []
+    matches: list[tuple[str, str]] = []
     for pattern in patterns:
         try:
             m = re.search(pattern, text)
@@ -25,8 +25,7 @@ def detect_regex_patterns(text: str, patterns: List[str]) -> List[Tuple[str, str
     return matches
 
 
-
-def extract_urls(text: str) -> List[str]:
+def extract_urls(text: str) -> list[str]:
     """Extracts all HTTP/HTTPS URLs from text."""
     if not text:
         return []
@@ -34,12 +33,12 @@ def extract_urls(text: str) -> List[str]:
     return re.findall(url_pattern, text)
 
 
-def extract_schema_descriptions(schema: Dict[str, Any]) -> List[Tuple[str, str]]:
+def extract_schema_descriptions(schema: dict[str, Any]) -> list[tuple[str, str]]:
     """
     Recursively extracts all 'description' fields from a JSON Schema tree.
     Returns list of tuples (json_path, description_text).
     """
-    results: List[Tuple[str, str]] = []
+    results: list[tuple[str, str]] = []
 
     def _walk(node: Any, path: str) -> None:
         if not isinstance(node, dict):
@@ -59,18 +58,47 @@ def extract_schema_descriptions(schema: Dict[str, Any]) -> List[Tuple[str, str]]
     return results
 
 
-# Common homoglyph character substitutions table for fast detection
+# Common homoglyph character substitutions table for fast detection (Cyrillic/Greek to ASCII)
 HOMOGLYPH_MAP = {
-    'а': 'a', 'с': 'c', 'е': 'e', 'о': 'o', 'р': 'p', 'х': 'x', 'у': 'y',  # Cyrillic
-    'А': 'A', 'В': 'B', 'С': 'C', 'Е': 'E', 'Н': 'H', 'І': 'I', 'М': 'M', 'О': 'O', 'Р': 'P', 'Т': 'T', 'Х': 'X',
-    'I': 'l', 'l': 'I', '1': 'l', '0': 'o', 'O': '0',  # Visual confusion in ASCII/Latin
+    "а": "a",
+    "с": "c",
+    "е": "e",
+    "о": "o",
+    "р": "p",
+    "х": "x",
+    "у": "y",
+    "і": "i",
+    "ј": "j",
+    "ѕ": "s",  # Cyrillic lowercase
+    "А": "A",
+    "В": "B",
+    "С": "C",
+    "Е": "E",
+    "Н": "H",
+    "І": "I",
+    "М": "M",
+    "О": "O",
+    "Р": "P",
+    "Т": "T",
+    "Х": "X",  # Cyrillic uppercase
+    "α": "a",
+    "β": "b",
+    "γ": "g",
+    "ε": "e",
+    "ι": "i",
+    "κ": "k",
+    "ν": "v",
+    "ο": "o",
+    "ρ": "p",
+    "τ": "t",
+    "υ": "u",  # Greek lowercase
 }
 
 
 def normalize_homoglyphs(text: str) -> str:
     """Normalizes Unicode characters to standard NFKD form and maps known confusable glyphs to base ASCII."""
     # First apply NFKD normalization
-    decomposed = unicodedata.normalize('NFKD', text)
+    decomposed = unicodedata.normalize("NFKD", text)
     # Strip non-spacing marks (accents, diacritics)
     base_ascii = "".join(c for c in decomposed if not unicodedata.combining(c))
     # Apply direct glyph substitution
@@ -93,8 +121,8 @@ def is_homoglyph_collision(candidate: str, target: str) -> bool:
 
 def detect_tool_name_homoglyph(
     tool_name: str,
-    standard_names: Optional[List[str]] = None,
-) -> Optional[Tuple[str, str]]:
+    standard_names: list[str] | None = None,
+) -> tuple[str, str] | None:
     """
     Detects if tool_name is a homoglyph variation of any standard tool name.
     Returns (standard_name, reason) if a collision is detected, else None.
@@ -139,14 +167,15 @@ def compute_text_similarity(text1: str, text2: str) -> float:
     try:
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.metrics.pairwise import cosine_similarity
-        vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words='english')
+
+        vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words="english")
         matrix = vectorizer.fit_transform([text1, text2])
         score = float(cosine_similarity(matrix[0:1], matrix[1:2])[0][0])
         return max(0.0, min(1.0, score))
     except Exception:
         # Fallback Jaccard token overlap
-        words1 = set(re.findall(r'\w+', text1.lower()))
-        words2 = set(re.findall(r'\w+', text2.lower()))
+        words1 = set(re.findall(r"\w+", text1.lower()))
+        words2 = set(re.findall(r"\w+", text2.lower()))
         if not words1 or not words2:
             return 0.0
         intersection = len(words1 & words2)

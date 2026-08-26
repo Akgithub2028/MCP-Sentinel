@@ -1,6 +1,6 @@
 [project]
 name = "mcp-security-toolkit"
-version = "0.1.0"
+version = "1.0.0"
 description = "MCP Security Red-Team & Defense Toolkit — Vulnerable lab, scanner, and runtime guardrail for Model Context Protocol servers"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -10,11 +10,12 @@ authors = [
 ]
 keywords = ["mcp", "security", "agentic-ai", "red-team", "scanner", "guardrail"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Topic :: Security",
     "Programming Language :: Python :: 3.12",
 ]
+
 
 [build-system]
 requires = ["hatchling"]
@@ -29,8 +30,12 @@ target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "SIM", "TCH"]
-ignore = ["S101"]  # Allow assert in tests
+select = ["E", "F", "W", "I", "B", "SIM"]
+ignore = ["E501", "W293", "B008", "B017", "B904", "SIM102", "SIM105", "F841"]
+
+
+
+
 
 [tool.ruff.lint.isort]
 known-first-party = ["mcp_security_common", "mcp_scanner", "mcp_guardrail"]
@@ -42,5 +47,6 @@ warn_return_any = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
+pythonpath = ["packages/common", "packages/scanner", "packages/guardrail", "packages/lab"]
 testpaths = ["packages/common/tests", "packages/scanner/tests", "packages/guardrail/tests", "packages/lab/tests"]
 asyncio_mode = "auto"

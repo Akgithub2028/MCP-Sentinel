@@ -1,0 +1,65 @@
+# MCP Security Red-Team & Defense Toolkit — Master Configuration
+# Aligned with OWASP MCP Top 10:2025 & Model Context Protocol 2025/2026
+
+scanner:
+  rules_dir: "detection-rules/static"
+  spec_version: "auto"  # "auto", "2024-11-05", "2025-03-26", "2025-06-15", "2026-01-15"
+  scoring:
+    min_severity: "LOW"
+    fail_on_critical: true
+  llm_judge:
+    enabled: true
+    provider: "nvidia_nim"
+    base_url: "https://integrate.api.nvidia.com/v1"
+    model: "deepseek-ai/deepseek-v4-flash-0731"
+    api_key_env: "NVIDIA_API_KEY"
+    temperature: 0.0
+    timeout_seconds: 60.0
+    max_tokens: 2048
+
+guardrail:
+  proxy:
+    host: "0.0.0.0"
+    port: 8000
+    upstream_url: "http://localhost:8001"
+    enforce_mode: true  # Set false for audit-only warning mode
+    pin_file: ".guardrail-pins.json"
+    audit_file: "guardrail_audit.ndjson"
+  
+  stdio:
+    enforce_mode: true
+    audit_file: "guardrail_stdio_audit.ndjson"
+
+  tier1_rules:
+    config_path: "detection-rules/runtime/tier1_config.yaml"
+    rate_limit:
+      max_calls: 30
+      window_seconds: 60.0
+    rapid_redefinition:
+      threshold_seconds: 5.0
+    response_volume:
+      max_bytes: 1048576  # 1MB
+    sensitive_argument_blocking: true
+    shadow_tool_warning: true
+    sampling_security_policy: true
+
+  tier2_ml:
+    model_path: "models/isolation_forest.onnx"
+    enabled: true
+    anomaly_threshold: 0.65
+
+auth:
+  auth_type: "bearer"  # "bearer", "oauth2_client_credentials", "custom_headers"
+  bearer_token_env: "MCP_AUTH_TOKEN"
+  oauth2:
+    token_url: "https://auth.example.com/oauth/token"
+    client_id_env: "MCP_CLIENT_ID"
+    client_secret_env: "MCP_CLIENT_SECRET"
+    scope: "mcp:tools mcp:resources"
+  custom_headers:
+    X-Client-Version: "mcp-defense-v2"
+
+dashboard:
+  serve_port: 8888
+  ws_stream_endpoint: "ws://localhost:8000/ws/events"
+  theme: "dark"

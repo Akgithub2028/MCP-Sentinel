@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from mcp_security_common.hash_utils import canonical_json, compute_tool_hash
 from mcp_security_common.mcp_types import MCPTool
@@ -11,9 +11,9 @@ from mcp_security_common.mcp_types import MCPTool
 class SchemaDriftDetector:
     @staticmethod
     def diff_tools(
-        baseline_tools: List[MCPTool],
-        current_tools: List[MCPTool],
-    ) -> Dict[str, Any]:
+        baseline_tools: list[MCPTool],
+        current_tools: list[MCPTool],
+    ) -> dict[str, Any]:
         """Computes structural diff between baseline and current tool lists."""
         base_map = {t.name: t for t in baseline_tools}
         curr_map = {t.name: t for t in current_tools}
@@ -27,22 +27,22 @@ class SchemaDriftDetector:
                 t_curr = curr_map[name]
                 t_base = base_map[name]
 
-                diffs: List[str] = []
+                diffs: list[str] = []
                 if t_curr.description != t_base.description:
-                    diffs.append(
-                        f"Description altered (length {len(t_base.description)} -> {len(t_curr.description)})"
-                    )
+                    diffs.append(f"Description altered (length {len(t_base.description)} -> {len(t_curr.description)})")
 
                 if canonical_json(t_curr.inputSchema) != canonical_json(t_base.inputSchema):
                     diffs.append("inputSchema structure altered")
 
                 if diffs:
-                    mutated_tools.append({
-                        "name": name,
-                        "base_hash": compute_tool_hash(t_base),
-                        "current_hash": compute_tool_hash(t_curr),
-                        "alterations": diffs
-                    })
+                    mutated_tools.append(
+                        {
+                            "name": name,
+                            "base_hash": compute_tool_hash(t_base),
+                            "current_hash": compute_tool_hash(t_curr),
+                            "alterations": diffs,
+                        }
+                    )
 
         has_drift = bool(added_tools or removed_tools or mutated_tools)
         return {

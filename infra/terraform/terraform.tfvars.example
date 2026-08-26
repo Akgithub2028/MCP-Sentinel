@@ -1,0 +1,8 @@
+# Example Terraform Variables for MCP Security Toolkit Deployment
+
+project_id      = "my-gcp-project-id"
+region          = "us-central1"
+environment     = "prod"
+scanner_image   = "us-central1-docker.pkg.dev/my-gcp-project-id/mcp-security-toolkit/mcp-scanner:v1.0.0"
+guardrail_image = "us-central1-docker.pkg.dev/my-gcp-project-id/mcp-security-toolkit/mcp-guardrail:v1.0.0"
+alert_email     = "security-team@mycompany.com"

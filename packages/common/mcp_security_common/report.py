@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
 
 from jinja2 import Template
 
@@ -36,49 +35,40 @@ def generate_sarif_report(result: ScanResult) -> str:
                 "name": finding.rule_name,
                 "shortDescription": {"text": finding.rule_name},
                 "fullDescription": {"text": finding.description},
-                "defaultConfiguration": {
-                    "level": SARIF_LEVEL_MAP.get(finding.severity, "warning")
-                },
+                "defaultConfiguration": {"level": SARIF_LEVEL_MAP.get(finding.severity, "warning")},
                 "help": {
-                    "text": finding.remediation or "Review tool metadata and capabilities according to OWASP MCP guidelines."
+                    "text": finding.remediation
+                    or "Review tool metadata and capabilities according to OWASP MCP guidelines."
                 },
-                "properties": {
-                    "tags": [finding.category.value, finding.owasp_mcp or "MCP"]
-                },
+                "properties": {"tags": [finding.category.value, finding.owasp_mcp or "MCP"]},
             }
 
         target_desc = f"Tool: {finding.target_tool}" if finding.target_tool else "Server Configuration"
-        sarif_results.append({
-            "ruleId": rule_id,
-            "level": SARIF_LEVEL_MAP.get(finding.severity, "warning"),
-            "message": {
-                "text": f"[{finding.severity.value}] {finding.description} Evidence: {finding.evidence or 'None'}"
-            },
-            "locations": [
-                {
-                    "physicalLocation": {
-                        "artifactLocation": {
-                            "uri": result.target_uri
+        sarif_results.append(
+            {
+                "ruleId": rule_id,
+                "level": SARIF_LEVEL_MAP.get(finding.severity, "warning"),
+                "message": {
+                    "text": f"[{finding.severity.value}] {finding.description} Evidence: {finding.evidence or 'None'}"
+                },
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": result.target_uri},
+                            "region": {"startLine": 1, "startColumn": 1},
                         },
-                        "region": {
-                            "startLine": 1,
-                            "startColumn": 1
-                        }
-                    },
-                    "logicalLocations": [
-                        {
-                            "name": target_desc,
-                            "kind": "tool" if finding.target_tool else "configuration"
-                        }
-                    ]
-                }
-            ],
-            "properties": {
-                "category": finding.category.value,
-                "owasp_mcp": finding.owasp_mcp,
-                "evidence": finding.evidence,
+                        "logicalLocations": [
+                            {"name": target_desc, "kind": "tool" if finding.target_tool else "configuration"}
+                        ],
+                    }
+                ],
+                "properties": {
+                    "category": finding.category.value,
+                    "owasp_mcp": finding.owasp_mcp,
+                    "evidence": finding.evidence,
+                },
             }
-        })
+        )
 
     sarif_doc = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
@@ -99,9 +89,9 @@ def generate_sarif_report(result: ScanResult) -> str:
                         "executionSuccessful": True,
                         "endTimeUtc": result.scan_timestamp,
                     }
-                ]
+                ],
             }
-        ]
+        ],
     }
     return json.dumps(sarif_doc, indent=2)
 

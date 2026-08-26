@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from mcp_scanner.connection import MCPConnection, StdioMCPConnection, create_connection
 from mcp_security_common.hash_utils import compute_tool_hash
+from mcp_security_common.llm_judge import LLMSemanticJudge
 from mcp_security_common.mcp_types import (
     AttackCategory,
     Finding,
@@ -23,38 +24,44 @@ from mcp_security_common.rules_engine import (
     evaluate_tool_rules,
     load_rules,
 )
-from mcp_scanner.connection import MCPConnection, StdioMCPConnection, create_connection
 
 
 class StaticAnalysisEngine:
-    def __init__(self, rules_dir: Optional[Path | str] = None):
+    def __init__(
+        self,
+        rules_dir: Path | str | None = None,
+        spec_version: str | None = None,
+        llm_judge: LLMSemanticJudge | None = None,
+    ):
         if rules_dir is None:
             # Default to workspace detection-rules/static
             rules_dir = Path(__file__).parent.parent.parent.parent / "detection-rules" / "static"
         self.rules_dir = Path(rules_dir)
-        self.rules: List[RuleDefinition] = load_rules(self.rules_dir)
+        self.spec_version = spec_version
+        self.llm_judge = llm_judge
+        self.rules: list[RuleDefinition] = load_rules(self.rules_dir, spec_version=self.spec_version)
 
     async def scan_connection(
         self,
         conn: MCPConnection,
         target_uri: str,
-        pinned_hashes: Optional[Dict[str, str]] = None,
+        pinned_hashes: dict[str, str] | None = None,
     ) -> ScanResult:
         """Audits an active MCP connection using static analysis."""
         start_time = time.perf_counter()
-        findings: List[Finding] = []
-        pins_recorded: Dict[str, str] = {}
+        findings: list[Finding] = []
+        pins_recorded: dict[str, str] = {}
 
         # 1. Initialize Handshake
         capabilities, server_info = await conn.initialize()
 
         # Check STDIO command injection if stdio connection
         if isinstance(conn, StdioMCPConnection):
-            stdio_findings = evaluate_stdio_config(conn.command, conn.args, self.rules)
+            stdio_findings = evaluate_stdio_config(conn.command, conn.args, self.rules, spec_version=self.spec_version)
             findings.extend(stdio_findings)
 
         # 2. Evaluate Capabilities (S003)
-        cap_findings = evaluate_capability_rules(capabilities, self.rules)
+        cap_findings = evaluate_capability_rules(capabilities, self.rules, spec_version=self.spec_version)
         findings.extend(cap_findings)
 
         # 3. Discover Tools
@@ -104,8 +111,13 @@ class StaticAnalysisEngine:
                     )
 
             # Evaluate static rules on tool
-            tool_findings = evaluate_tool_rules(tool, self.rules)
+            tool_findings = evaluate_tool_rules(tool, self.rules, spec_version=self.spec_version)
             findings.extend(tool_findings)
+
+        # 5. Semantic LLM Judge Analysis (Gap G1)
+        if self.llm_judge and self.llm_judge.config.enabled:
+            llm_findings = await self.llm_judge.analyze_tools(tools)
+            findings.extend(llm_findings)
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
 
@@ -120,13 +132,31 @@ class StaticAnalysisEngine:
             pins_recorded=pins_recorded,
         )
 
+    async def scan_manifest_data_async(
+        self,
+        tools_data: list[dict[str, Any]],
+        capabilities_data: dict[str, Any] | None = None,
+        pinned_hashes: dict[str, str] | None = None,
+    ) -> ScanResult:
+        """Asynchronously scans manifest data with optional LLM semantic analysis."""
+        res = self.scan_manifest_data(tools_data, capabilities_data=capabilities_data, pinned_hashes=pinned_hashes)
+        if self.llm_judge and self.llm_judge.config.enabled:
+            llm_findings = await self.llm_judge.analyze_tools(res.tools_scanned)
+            res.findings.extend(llm_findings)
+        return res
+
     async def scan_target(
         self,
         target: str,
-        pinned_hashes: Optional[Dict[str, str]] = None,
+        pinned_hashes: dict[str, str] | None = None,
+        auth_config: Any | None = None,
     ) -> ScanResult:
         """Connects to target (URI or CLI command), scans, and closes connection."""
-        conn = await create_connection(target)
+        conn = await create_connection(
+            target,
+            protocol_version=self.spec_version or "2025-03-26",
+            auth_config=auth_config,
+        )
         try:
             return await self.scan_connection(conn, target_uri=target, pinned_hashes=pinned_hashes)
         finally:
@@ -134,20 +164,20 @@ class StaticAnalysisEngine:
 
     def scan_manifest_data(
         self,
-        tools_data: List[Dict[str, Any]],
-        capabilities_data: Optional[Dict[str, Any]] = None,
-        pinned_hashes: Optional[Dict[str, str]] = None,
+        tools_data: list[dict[str, Any]],
+        capabilities_data: dict[str, Any] | None = None,
+        pinned_hashes: dict[str, str] | None = None,
     ) -> ScanResult:
         """Scans static offline manifest JSON without network connection."""
         start_time = time.perf_counter()
-        findings: List[Finding] = []
-        pins_recorded: Dict[str, str] = {}
+        findings: list[Finding] = []
+        pins_recorded: dict[str, str] = {}
 
         caps = MCPServerCapabilities.from_dict(capabilities_data or {})
-        cap_findings = evaluate_capability_rules(caps, self.rules)
+        cap_findings = evaluate_capability_rules(caps, self.rules, spec_version=self.spec_version)
         findings.extend(cap_findings)
 
-        tools: List[MCPTool] = []
+        tools: list[MCPTool] = []
         for t in tools_data:
             tool = MCPTool(
                 name=t.get("name", "unnamed"),
@@ -175,7 +205,7 @@ class StaticAnalysisEngine:
                         )
                     )
 
-            tool_findings = evaluate_tool_rules(tool, self.rules)
+            tool_findings = evaluate_tool_rules(tool, self.rules, spec_version=self.spec_version)
             findings.extend(tool_findings)
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0

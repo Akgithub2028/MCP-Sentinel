@@ -1,0 +1,30 @@
+# Cloud Build CI/CD Pipeline for MCP Security Toolkit
+steps:
+  # 1. Install dependencies & run test suite with coverage
+  - name: 'python:3.12-slim'
+    id: 'test-and-coverage'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install --upgrade pip
+        pip install uv
+        uv pip install --system -r packages/lab/servers/atk1_description_injection/requirements.txt
+        uv pip install --system -e ./packages/common -e ./packages/scanner -e ./packages/guardrail
+        uv pip install --system pytest pytest-asyncio pytest-cov onnx onnxruntime skl2onnx
+        pytest --cov=mcp_security_common --cov=mcp_scanner --cov=mcp_guardrail --cov-report=term-missing --cov-fail-under=90
+
+  # 2. Build Docker images for Lab servers
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-lab-atk1'
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/mcp-lab/atk1-description-injection:$COMMIT_SHA', './packages/lab/servers/atk1_description_injection']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-lab-atk2'
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/mcp-lab/atk2-rug-pull:$COMMIT_SHA', './packages/lab/servers/atk2_rug_pull']
+
+substitutions:
+  _REGION: 'us-central1'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

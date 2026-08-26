@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
+
+RUN groupadd -g 10001 mcp && \
+    useradd -u 10001 -g mcp -s /bin/bash -m mcp
+
+WORKDIR /app
+
+# Copy packages and rules
+COPY pyproject.toml .
+COPY detection-rules/ ./detection-rules/
+COPY packages/ ./packages/
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+      ./packages/common \
+      ./packages/scanner \
+      uvicorn \
+      starlette
+
+USER 10001:10001
+
+EXPOSE 8080
+
+CMD ["python", "-m", "uvicorn", "mcp_scanner.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080"]

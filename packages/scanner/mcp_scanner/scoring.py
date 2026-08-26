@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 from mcp_security_common.mcp_types import Finding, FindingSeverity, ScanResult
 
 
-def aggregate_and_deduplicate_findings(findings: List[Finding]) -> List[Finding]:
+def aggregate_and_deduplicate_findings(findings: list[Finding]) -> list[Finding]:
     """Deduplicates findings while preserving highest severity and unique evidence."""
-    seen: Dict[str, Finding] = {}
+    seen: dict[str, Finding] = {}
     for f in findings:
         key = f"{f.rule_id}:{f.target_tool or 'none'}:{f.target_field or 'none'}"
         if key not in seen:
@@ -24,10 +22,11 @@ def aggregate_and_deduplicate_findings(findings: List[Finding]) -> List[Finding]
 def format_cli_table(result: ScanResult) -> str:
     """Formats a rich terminal summary table of the scan result."""
     try:
+        import io
+
         from rich.console import Console
         from rich.panel import Panel
         from rich.table import Table
-        import io
 
         console = Console(file=io.StringIO(), force_terminal=True)
 
@@ -69,7 +68,7 @@ def format_cli_table(result: ScanResult) -> str:
                     f.rule_id,
                     f"[{sev_color}]{f.severity.value}[/{sev_color}]",
                     f.target_tool or "Global",
-                    f"{f.description}\n[dim]Evidence: {f.evidence or 'None'}[/dim]"
+                    f"{f.description}\n[dim]Evidence: {f.evidence or 'None'}[/dim]",
                 )
             console.print(findings_table)
         else:

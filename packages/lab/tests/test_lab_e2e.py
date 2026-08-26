@@ -1,35 +1,28 @@
-"""End-to-end integration tests connecting Scanner, Guardrail, and Vulnerable Lab servers."""
+"""Comprehensive end-to-end integration tests connecting Scanner, Guardrail, and all 6 Vulnerable Lab servers."""
 
-import json
 import sys
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
-from mcp_security_common.hash_utils import compute_tool_hash
-from mcp_security_common.mcp_types import MCPTool
-from mcp_scanner.cli import app
-from mcp_scanner.connection import StdioMCPConnection
-from mcp_scanner.static_engine import StaticAnalysisEngine
 from mcp_guardrail.audit import AuditLogger
 from mcp_guardrail.interceptor import GuardrailInterceptor
 from mcp_guardrail.pin_store import SchemaPinStore
+from mcp_scanner.connection import StdioMCPConnection
+from mcp_scanner.dynamic_engine import DynamicAnalysisEngine
+from mcp_scanner.static_engine import StaticAnalysisEngine
+from mcp_security_common.hash_utils import compute_tool_hash
 
 runner = CliRunner()
 
 
 @pytest.mark.asyncio
 async def test_atk1_server_stdio_safe_vs_vulnerable():
-    atk1_script = str(
-        Path(__file__).parent.parent / "servers" / "atk1_description_injection" / "server.py"
-    )
+    atk1_script = str(Path(__file__).parent.parent / "servers" / "atk1_description_injection" / "server.py")
 
     # 1. Safe Mode
-    conn_safe = StdioMCPConnection(
-        command=sys.executable,
-        args=[atk1_script, "--mode", "safe", "--transport", "stdio"],
-    )
+    conn_safe = StdioMCPConnection(command=sys.executable, args=[atk1_script, "--mode", "safe", "--transport", "stdio"])
     await conn_safe.connect()
     try:
         engine = StaticAnalysisEngine()
@@ -41,8 +34,7 @@ async def test_atk1_server_stdio_safe_vs_vulnerable():
 
     # 2. Vulnerable Mode
     conn_vuln = StdioMCPConnection(
-        command=sys.executable,
-        args=[atk1_script, "--mode", "vulnerable", "--transport", "stdio"],
+        command=sys.executable, args=[atk1_script, "--mode", "vulnerable", "--transport", "stdio"]
     )
     await conn_vuln.connect()
     try:
@@ -60,13 +52,10 @@ async def test_atk1_server_stdio_safe_vs_vulnerable():
 
 @pytest.mark.asyncio
 async def test_atk2_server_rugpull_lifecycle_and_guardrail():
-    atk2_script = str(
-        Path(__file__).parent.parent / "servers" / "atk2_rug_pull" / "server.py"
-    )
+    atk2_script = str(Path(__file__).parent.parent / "servers" / "atk2_rug_pull" / "server.py")
 
     conn = StdioMCPConnection(
-        command=sys.executable,
-        args=[atk2_script, "--mode", "vulnerable", "--transport", "stdio"],
+        command=sys.executable, args=[atk2_script, "--mode", "vulnerable", "--transport", "stdio"]
     )
     await conn.connect()
     try:
@@ -88,11 +77,12 @@ async def test_atk2_server_rugpull_lifecycle_and_guardrail():
         sanitized_1, findings_1 = guardrail.intercept_server_response(list_req, list_resp_initial)
         assert len(sanitized_1["result"]["tools"]) == 1
 
-        # Trigger Rug-Pull
-        trigger_resp = await conn.send_request("admin/trigger_rug_pull", {})
-        assert trigger_resp.get("result", {}).get("status") == "rug_pulled"
+        # Test Dynamic Engine Playbook D001
+        dynamic_engine = DynamicAnalysisEngine()
+        dyn_findings = await dynamic_engine.run_playbook_d001_rug_pull(conn)
+        assert any(f.rule_id == "D001" for f in dyn_findings)
 
-        # Mutated tools list
+        # Re-fetch mutated tools from server
         mutated_tools = await conn.list_tools()
         assert len(mutated_tools) == 1
         mutated_tool = mutated_tools[0]
@@ -154,3 +144,16 @@ async def test_atk5_server_confused_deputy():
         assert "S005" in rule_ids  # Sensitive credential harvesting
     finally:
         await conn_vuln.close()
+
+
+@pytest.mark.asyncio
+async def test_atk6_server_transport_abuse():
+    atk6_script = str(Path(__file__).parent.parent / "servers" / "atk6_transport_abuse" / "server.py")
+    conn_safe = StdioMCPConnection(command=sys.executable, args=[atk6_script, "--mode", "safe"])
+    await conn_safe.connect()
+    try:
+        engine = StaticAnalysisEngine()
+        res = await engine.scan_connection(conn_safe, target_uri="stdio://atk6-safe")
+        assert len(res.findings) == 0
+    finally:
+        await conn_safe.close()

@@ -1,0 +1,56 @@
+# Tier 1 Runtime Anomaly Detection Configuration
+# Standard security rules enforced during JSON-RPC proxy/wrapper interception.
+# Users can customize thresholds and patterns without modifying source code.
+
+rules:
+  rate_limit:
+    enabled: true
+    max_calls: 20
+    window_seconds: 10.0
+
+  rapid_redefinition:
+    enabled: true
+    threshold_seconds: 60.0
+
+  response_volume:
+    enabled: true
+    max_bytes: 1048576  # 1MB
+
+  recursive_tool_call:
+    enabled: true
+    max_recursion_depth: 3
+
+  cross_tool_data_leak:
+    enabled: true
+    min_match_length: 20  # Minimum character length to trigger data leakage alert
+
+  unusual_param_injection:
+    enabled: true
+    shell_metachar_patterns:
+      - '(?i)(?:^|[\s;|&])(?:bash|sh|zsh|cmd|powershell|curl|wget|nc|netcat|ncat)\b'
+      - '`[^`]+`'
+      - '\$\([^)]+\)'
+      - '(?i)(?:;|\|\||&&)\s*(?:cat|rm|chmod|chown|kill|exec|eval)\b'
+      - '(?i)>\s*/dev/(?:tcp|udp)/\d+'
+
+  binary_payload:
+    enabled: true
+    base64_min_length: 100
+    hex_min_length: 64
+
+  sampling_prompt_injection:
+    enabled: true
+    injection_patterns:
+      - '(?i)ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions'
+      - '(?i)system\s+update'
+      - '(?i)you\s+are\s+now\s+in\s+override\s+mode'
+      - '(?i)mandatory\s+security\s+policy'
+      - '(?i)exfil(?:trate)?'
+
+  credential_patterns:
+    - '(?i)(?:~|\$HOME|/home/\w+)/\.ssh(?:/id_\w+)?'
+    - '(?i)(?:~|\$HOME|/home/\w+)/\.aws(?:/credentials)?'
+    - '(?i)AWS_(?:SECRET_ACCESS_KEY|ACCESS_KEY_ID|SESSION_TOKEN)'
+    - '(?i)GITHUB_TOKEN|GH_TOKEN|OPENAI_API_KEY|ANTHROPIC_API_KEY|NVIDIA_API_KEY'
+    - '(?i)CANARY_SECRET|CANARY_KEY'
+    - '(?i)BEGIN (?:RSA|OPENSSH|DSA|EC) PRIVATE KEY'

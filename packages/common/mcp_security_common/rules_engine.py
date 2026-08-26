@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -25,38 +24,43 @@ from mcp_security_common.text_analysis import (
 
 
 class RuleDefinition:
-    def __init__(self, raw: Dict[str, Any]):
+    def __init__(self, raw: dict[str, Any]):
         self.id: str = raw.get("id", "UNKNOWN")
         self.name: str = raw.get("name", "Unnamed Rule")
         self.severity: FindingSeverity = FindingSeverity(raw.get("severity", "MEDIUM").upper())
         self.category: AttackCategory = AttackCategory(raw.get("category", "tool_poisoning"))
-        self.owasp_mcp: Optional[str] = raw.get("owasp_mcp")
+        self.owasp_mcp: str | None = raw.get("owasp_mcp")
         self.description: str = raw.get("description", "")
         self.pattern_type: str = raw.get("pattern_type", "regex_any")
-        self.patterns: List[str] = raw.get("patterns", [])
-        self.conditions: Dict[str, Any] = raw.get("conditions", {})
-        self.target_standard_names: List[str] = raw.get("target_standard_names", [])
-        self.write_indicators: List[str] = raw.get("write_indicators", [])
-        self.remediation: Optional[str] = raw.get("remediation")
+        self.patterns: list[str] = raw.get("patterns", [])
+        self.conditions: dict[str, Any] = raw.get("conditions", {})
+        self.target_standard_names: list[str] = raw.get("target_standard_names", [])
+        self.write_indicators: list[str] = raw.get("write_indicators", [])
+        self.spec_versions: list[str] = raw.get("spec_versions", [])
+        self.remediation: str | None = raw.get("remediation")
 
     @classmethod
     def from_file(cls, path: Path | str) -> RuleDefinition:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return cls(data or {})
 
 
-def load_rules(rules_dir: Path | str) -> List[RuleDefinition]:
-    """Loads all YAML rule files from a directory recursively."""
-    rules: List[RuleDefinition] = []
+def load_rules(rules_dir: Path | str, spec_version: str | None = None) -> list[RuleDefinition]:
+    """Loads all YAML rule files from a directory recursively with optional spec version filter."""
+    rules: list[RuleDefinition] = []
     dir_path = Path(rules_dir)
     if not dir_path.exists():
         return rules
 
     for file_path in sorted(dir_path.glob("*.yml")) + sorted(dir_path.glob("*.yaml")):
         try:
-            rules.append(RuleDefinition.from_file(file_path))
-        except Exception as e:
+            rule = RuleDefinition.from_file(file_path)
+            if spec_version and rule.spec_versions:
+                if spec_version not in rule.spec_versions:
+                    continue
+            rules.append(rule)
+        except Exception:
             # Skip malformed rule file but continue loading others
             continue
     return rules
@@ -64,12 +68,14 @@ def load_rules(rules_dir: Path | str) -> List[RuleDefinition]:
 
 def evaluate_tool_rules(
     tool: MCPTool,
-    rules: List[RuleDefinition],
-) -> List[Finding]:
+    rules: list[RuleDefinition],
+    spec_version: str | None = None,
+) -> list[Finding]:
     """Evaluates static rules against a single MCPTool."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
+    active_rules = [r for r in rules if not spec_version or not r.spec_versions or spec_version in r.spec_versions]
 
-    for rule in rules:
+    for rule in active_rules:
         if rule.pattern_type == "regex_any":
             matches = detect_regex_patterns(tool.description or "", rule.patterns)
             if matches:
@@ -158,7 +164,6 @@ def evaluate_tool_rules(
                     )
                 )
 
-
         elif rule.pattern_type == "schema_structure_check":
             schema = tool.inputSchema or {}
             reasons = []
@@ -192,9 +197,14 @@ def evaluate_tool_rules(
             annotations = tool.annotations or {}
             is_read_only = annotations.get("readOnlyHint") is True or annotations.get("readOnly") is True
             if is_read_only and tool.description:
-                matches = detect_regex_patterns(tool.description, rule.write_indicators)
+                desc_cleaned = re.sub(
+                    r"(?i)(?:execut\w*|run\w*|fetch\w*|perform\w*)\s+read[- ]only\s+\w+", "", tool.description
+                )
+                desc_cleaned = re.sub(r"(?i)read[- ]only\s+\w+", "", desc_cleaned)
+                matches = detect_regex_patterns(desc_cleaned, rule.write_indicators)
                 if matches:
                     evidence_items = [f"Found mutation indicator '{m}'" for _, m in matches]
+
                     findings.append(
                         Finding(
                             rule_id=rule.id,
@@ -215,18 +225,22 @@ def evaluate_tool_rules(
 
 def evaluate_capability_rules(
     capabilities: MCPServerCapabilities,
-    rules: List[RuleDefinition],
-) -> List[Finding]:
+    rules: list[RuleDefinition],
+    spec_version: str | None = None,
+) -> list[Finding]:
     """Evaluates rules that inspect server capabilities from the initialize handshake."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
+    active_rules = [r for r in rules if not spec_version or not r.spec_versions or spec_version in r.spec_versions]
 
-    for rule in rules:
+    for rule in active_rules:
         if rule.pattern_type == "capability_check":
             reasons = []
             if rule.conditions.get("flag_sampling") and capabilities.sampling:
                 reasons.append("Server declares 'sampling' capability (enables reverse-authority prompt requests)")
             if rule.conditions.get("flag_list_changed") and capabilities.tools_list_changed:
-                reasons.append("Server declares 'tools.listChanged: true' (enables dynamic tool redefinition / rug-pulls)")
+                reasons.append(
+                    "Server declares 'tools.listChanged: true' (enables dynamic tool redefinition / rug-pulls)"
+                )
 
             if reasons:
                 findings.append(
@@ -249,14 +263,16 @@ def evaluate_capability_rules(
 
 def evaluate_stdio_config(
     command: str,
-    args: List[str],
-    rules: List[RuleDefinition],
-) -> List[Finding]:
+    args: list[str],
+    rules: list[RuleDefinition],
+    spec_version: str | None = None,
+) -> list[Finding]:
     """Evaluates STDIO launch configuration against command injection rules (S010)."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     full_cmd_line = f"{command} {' '.join(args)}"
+    active_rules = [r for r in rules if not spec_version or not r.spec_versions or spec_version in r.spec_versions]
 
-    for rule in rules:
+    for rule in active_rules:
         if rule.pattern_type == "stdio_config_check":
             matches = detect_regex_patterns(full_cmd_line, rule.patterns)
             if matches:

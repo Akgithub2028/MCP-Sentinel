@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class FindingSeverity(str, Enum):
@@ -43,11 +43,11 @@ class AttackCategory(str, Enum):
 class MCPTool:
     name: str
     description: str = ""
-    inputSchema: Dict[str, Any] = field(default_factory=lambda: {"type": "object", "properties": {}})
-    annotations: Optional[Dict[str, Any]] = None
+    inputSchema: dict[str, Any] = field(default_factory=lambda: {"type": "object", "properties": {}})
+    annotations: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        data: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "inputSchema": self.inputSchema,
@@ -64,10 +64,10 @@ class MCPServerCapabilities:
     resources: bool = False
     prompts: bool = False
     logging: bool = False
-    raw: Dict[str, Any] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MCPServerCapabilities:
+    def from_dict(cls, data: dict[str, Any]) -> MCPServerCapabilities:
         tools_cap = data.get("tools", {})
         list_changed = isinstance(tools_cap, dict) and tools_cap.get("listChanged", False)
         sampling_cap = "sampling" in data
@@ -91,14 +91,14 @@ class Finding:
     severity: FindingSeverity
     category: AttackCategory
     description: str
-    target_tool: Optional[str] = None
-    target_field: Optional[str] = None
-    evidence: Optional[str] = None
-    owasp_mcp: Optional[str] = None
-    remediation: Optional[str] = None
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    target_tool: str | None = None
+    target_field: str | None = None
+    evidence: str | None = None
+    owasp_mcp: str | None = None
+    remediation: str | None = None
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "rule_id": self.rule_id,
             "rule_name": self.rule_name,
@@ -120,9 +120,9 @@ class ToolPin:
     hash: str
     description_length: int
     schema_property_count: int
-    pinned_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    pinned_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "hash": self.hash,
@@ -135,10 +135,10 @@ class ToolPin:
 @dataclass
 class ServerPinStore:
     server_id: str
-    version: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    pins: Dict[str, ToolPin] = field(default_factory=dict)
+    version: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    pins: dict[str, ToolPin] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "server_id": self.server_id,
             "version": self.version,
@@ -152,12 +152,12 @@ class ScanResult:
     server_name: str = "unknown"
     server_version: str = "unknown"
     protocol_version: str = "2025-03-26"
-    capabilities: Optional[MCPServerCapabilities] = None
-    tools_scanned: List[MCPTool] = field(default_factory=list)
-    findings: List[Finding] = field(default_factory=list)
-    scan_timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    capabilities: MCPServerCapabilities | None = None
+    tools_scanned: list[MCPTool] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
+    scan_timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     scan_duration_ms: float = 0.0
-    pins_recorded: Dict[str, str] = field(default_factory=dict)
+    pins_recorded: dict[str, str] = field(default_factory=dict)
 
     @property
     def risk_score(self) -> float:
@@ -167,13 +167,13 @@ class ScanResult:
         return round(max_severity + (0.1 * len(self.findings)), 2)
 
     @property
-    def summary_counts(self) -> Dict[str, int]:
-        counts: Dict[str, int] = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
+    def summary_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
         for f in self.findings:
             counts[f.severity.value] = counts.get(f.severity.value, 0) + 1
         return counts
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "target_uri": self.target_uri,
             "server_name": self.server_name,

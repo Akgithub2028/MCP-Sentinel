@@ -14,6 +14,10 @@ help:
 	@echo "make lint          - Check code style and formatting with ruff"
 	@echo "make format        - Automatically format code with ruff"
 	@echo "make scan-demo     - Run live scanner audit on ATK-1 vulnerable lab server"
+	@echo "make benchmark     - Run MCPSecBench & MCPTox benchmark evaluations"
+	@echo "make dashboard     - Generate interactive metrics dashboard HTML"
+	@echo "make serve-api     - Launch Scanner REST API on port 8080"
+	@echo "make docker-lab    - Launch full 6-server vulnerable lab in Docker"
 	@echo "make run-lab-atk1  - Launch ATK-1 Description Injection server on port 8001"
 	@echo "make run-lab-atk2  - Launch ATK-2 Rug-Pull server on port 8002"
 	@echo "make run-guardrail - Launch runtime guardrail proxy on port 8000 -> upstream 8001"
@@ -25,7 +29,7 @@ install:
 	uv pip install --python $(PYTHON) -e ./packages/common -e ./packages/scanner -e ./packages/guardrail
 
 test:
-	$(PYTEST) -v
+	$(PYTEST) -v --cov=mcp_security_common --cov=mcp_scanner --cov=mcp_guardrail
 
 lint:
 	$(RUFF) check .
@@ -35,6 +39,18 @@ format:
 
 scan-demo:
 	$(MCP_SCAN) scan "$(PYTHON) packages/lab/servers/atk1_description_injection/server.py --mode vulnerable" --format table
+
+benchmark:
+	$(MCP_SCAN) benchmark --suite all
+
+dashboard:
+	$(MCP_SCAN) dashboard --output metrics_dashboard.html
+
+serve-api:
+	$(MCP_SCAN) serve --port 8080
+
+docker-lab:
+	docker compose -f docker-compose.lab.yml up -d
 
 run-lab-atk1:
 	$(PYTHON) packages/lab/servers/atk1_description_injection/server.py --transport http --port 8001 --mode vulnerable
@@ -46,5 +62,6 @@ run-guardrail:
 	$(MCP_GUARDRAIL) --upstream http://localhost:8001 --port 8000 --enforce
 
 clean:
-	rm -rf .pytest_cache htmlcov .coverage scan_report.html .mcp-scan-pins.json guardrail_audit.ndjson
+	rm -rf .pytest_cache htmlcov .coverage scan_report.html metrics_dashboard.html .mcp-scan-pins.json guardrail_audit.ndjson
+
 	find . -type d -name "__pycache__" -exec rm -rf {} +

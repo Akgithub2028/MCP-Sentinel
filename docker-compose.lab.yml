@@ -43,6 +43,94 @@ services:
       - lab-internal
     restart: unless-stopped
 
+  vuln-tool-shadow:
+    build:
+      context: ./packages/lab/servers/atk3_tool_shadow
+      dockerfile: Dockerfile
+    container_name: mcp-lab-atk3-tool-shadow
+    environment:
+      - VULN_MODE=${VULN_MODE:-safe}
+      - PORT=8003
+    ports:
+      - "127.0.0.1:8003:8003"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - lab-internal
+    restart: unless-stopped
+
+  vuln-cross-server:
+    build:
+      context: ./packages/lab/servers/atk4_cross_server
+      dockerfile: Dockerfile
+    container_name: mcp-lab-atk4-cross-server
+    environment:
+      - VULN_MODE=${VULN_MODE:-safe}
+      - PORT=8004
+    ports:
+      - "127.0.0.1:8004:8004"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - lab-internal
+    restart: unless-stopped
+
+  vuln-confused-deputy:
+    build:
+      context: ./packages/lab/servers/atk5_confused_deputy
+      dockerfile: Dockerfile
+    container_name: mcp-lab-atk5-confused-deputy
+    environment:
+      - VULN_MODE=${VULN_MODE:-safe}
+      - PORT=8005
+    ports:
+      - "127.0.0.1:8005:8005"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - lab-internal
+    restart: unless-stopped
+
+  vuln-transport-abuse:
+    build:
+      context: ./packages/lab/servers/atk6_transport_abuse
+      dockerfile: Dockerfile
+    container_name: mcp-lab-atk6-transport-abuse
+    environment:
+      - VULN_MODE=${VULN_MODE:-safe}
+      - PORT=8006
+    ports:
+      - "127.0.0.1:8006:8006"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - lab-internal
+    restart: unless-stopped
+
 networks:
   lab-internal:
     driver: bridge

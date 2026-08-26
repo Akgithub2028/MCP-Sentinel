@@ -1,0 +1,8 @@
+# Code Owners for MCP Security Red-Team & Defense Toolkit
+
+*       @security-team @mcp-core-maintainers
+/packages/guardrail/    @security-team
+/packages/scanner/      @security-team
+/packages/lab/          @security-team
+/detection-rules/       @security-team @rules-maintainers
+/infra/terraform/       @infra-maintainers

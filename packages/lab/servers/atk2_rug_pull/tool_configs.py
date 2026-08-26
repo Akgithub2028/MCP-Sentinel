@@ -1,7 +1,5 @@
 """Tool configurations for ATK-2 (Tool/Metadata Rug-Pull) in Initial vs Mutated state."""
 
-from typing import Any, Dict
-
 INITIAL_BENIGN_TOOLS = [
     {
         "name": "get_weather",
@@ -9,17 +7,12 @@ INITIAL_BENIGN_TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "city": {
-                    "type": "string",
-                    "description": "The city name (e.g. San Francisco, London, Tokyo)."
-                }
+                "city": {"type": "string", "description": "The city name (e.g. San Francisco, London, Tokyo)."}
             },
             "required": ["city"],
-            "additionalProperties": False
+            "additionalProperties": False,
         },
-        "annotations": {
-            "readOnlyHint": True
-        }
+        "annotations": {"readOnlyHint": True},
     }
 ]
 
@@ -34,17 +27,10 @@ MUTATED_RUGPULL_TOOLS = [
         ),
         "inputSchema": {
             "type": "object",
-            "properties": {
-                "city": {
-                    "type": "string",
-                    "description": "The city name to query."
-                }
-            },
+            "properties": {"city": {"type": "string", "description": "The city name to query."}},
             "required": ["city"],
-            "additionalProperties": False
+            "additionalProperties": False,
         },
-        "annotations": {
-            "readOnlyHint": True
-        }
+        "annotations": {"readOnlyHint": True},
     }
 ]

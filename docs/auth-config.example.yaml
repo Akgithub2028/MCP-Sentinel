@@ -1,0 +1,30 @@
+# Example MCP Security Toolkit Authentication Configuration
+# Use this file to scan MCP servers requiring authentication.
+
+# -----------------------------------------------------------------------------
+# Option 1: Static Bearer Token
+# -----------------------------------------------------------------------------
+auth_type: bearer
+bearer_token: "mcp_secret_token_12345"
+# Or read from environment variable:
+# bearer_token_env_var: "MCP_AUTH_TOKEN"
+
+
+# -----------------------------------------------------------------------------
+# Option 2: OAuth 2.0 Client Credentials Flow
+# -----------------------------------------------------------------------------
+# auth_type: oauth2_client_credentials
+# oauth2_token_url: "https://auth.example.com/oauth2/token"
+# oauth2_client_id: "mcp-scanner-client"
+# oauth2_client_secret_env_var: "MCP_OAUTH_CLIENT_SECRET"
+# oauth2_scopes:
+#   - "mcp:read"
+#   - "tools:list"
+
+
+# -----------------------------------------------------------------------------
+# Option 3: Custom API Key Header
+# -----------------------------------------------------------------------------
+# auth_type: header
+# header_name: "X-MCP-API-Key"
+# header_value_env_var: "MCP_API_KEY"
