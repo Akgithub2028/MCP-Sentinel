@@ -38,7 +38,7 @@
 
 ## 📋 Table of Contents
 - [Executive Overview](#-executive-overview)
-- [Tech Stack](#-high-signal-tech-stack)
+- [Tech Stack](#tech-stack)
 - [System Architecture](#-system-architecture)
 - [Core Subsystems](#-core-subsystems)
   - [1. Automated Scanner & NVIDIA NIM Semantic Judge](#1-automated-scanner--nvidia-nim-semantic-judge)
