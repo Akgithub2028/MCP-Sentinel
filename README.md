@@ -38,7 +38,7 @@
 
 ## 📋 Table of Contents
 - [Executive Overview](#-executive-overview)
-- [High-Signal Tech Stack](#-high-signal-tech-stack)
+- [Tech Stack](#-high-signal-tech-stack)
 - [System Architecture](#-system-architecture)
 - [Core Subsystems](#-core-subsystems)
   - [1. Automated Scanner & NVIDIA NIM Semantic Judge](#1-automated-scanner--nvidia-nim-semantic-judge)
@@ -68,7 +68,7 @@ The **Model Context Protocol (MCP)** provides a universal JSON-RPC 2.0 bridge be
 
 ---
 
-## ⚡ High-Signal Tech Stack
+## ⚡ Tech Stack
 
 | Domain | Technologies & Frameworks | Strategic Purpose |
 |:---|:---|:---|
